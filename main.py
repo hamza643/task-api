@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -6,7 +7,7 @@ import models  # noqa: F401
 from database import Base, engine, get_db
 from models import User
 from schemas import TaskCreate, UserCreate, UserOut
-from security import hash_password
+from security import create_access_token, hash_password, verify_password
 
 Base.metadata.create_all(engine)
 
@@ -42,3 +43,11 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return user
+
+
+@app.post("/login")
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.scalars(select(User).where(User.username == form.username)).first()
+    if user is None or not verify_password(form.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    return {"access_token": create_access_token(user.username), "token_type": "bearer"}
