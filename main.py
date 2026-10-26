@@ -1,11 +1,12 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+
+import models  # noqa: F401  (tables ko Base mein register karne ke liye)
+from database import Base, engine
+from schemas import TaskCreate
+
+Base.metadata.create_all(engine)
 
 app = FastAPI()
-
-
-class TaskCreate(BaseModel):
-    title: str
 
 
 @app.get("/")
