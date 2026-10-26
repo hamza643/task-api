@@ -7,7 +7,12 @@ import models  # noqa: F401
 from database import Base, engine, get_db
 from models import User
 from schemas import TaskCreate, UserCreate, UserOut
-from security import create_access_token, hash_password, verify_password
+from security import (
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
 
 Base.metadata.create_all(engine)
 
@@ -51,3 +56,8 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     if user is None or not verify_password(form.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     return {"access_token": create_access_token(user.username), "token_type": "bearer"}
+
+
+@app.get("/me", response_model=UserOut)
+def me(current_user: User = Depends(get_current_user)):
+    return current_user

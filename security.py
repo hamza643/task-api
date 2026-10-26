@@ -1,10 +1,19 @@
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from jose import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from database import get_db
+from models import User
 
 SECRET_KEY = "dev-secret-change-in-real-life"
 ALGORITHM = "HS256"
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
 def hash_password(password: str) -> str:
@@ -19,3 +28,25 @@ def create_access_token(username: str, expires_delta: timedelta = timedelta(minu
     expire = datetime.now(timezone.utc) + expires_delta
     payload = {"sub": username, "exp": expire}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise error
+    except JWTError:
+        raise error
+
+    user = db.scalars(select(User).where(User.username == username)).first()
+    if user is None:
+        raise error
+    return user
