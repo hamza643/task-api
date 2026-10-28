@@ -1,0 +1,29 @@
+# Codespaces-only version: both containers share the host network,
+# because container-to-container bridge traffic is blocked there.
+services:
+  db:
+    image: postgres:16
+    network_mode: host
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpass
+      POSTGRES_DB: tasks
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U taskuser -d tasks"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    network_mode: host
+    environment:
+      DATABASE_URL: postgresql+psycopg2://taskuser:taskpass@127.0.0.1:5432/tasks
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
