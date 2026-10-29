@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import User
+from settings import ACCESS_TOKEN_MINUTES, SECRET_KEY
 
-SECRET_KEY = "dev-secret-change-in-real-life"
 ALGORITHM = "HS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -24,7 +24,10 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode(), password_hash.encode())
 
 
-def create_access_token(username: str, expires_delta: timedelta = timedelta(minutes=30)) -> str:
+def create_access_token(
+    username: str,
+    expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_MINUTES),
+) -> str:
     expire = datetime.now(timezone.utc) + expires_delta
     payload = {"sub": username, "exp": expire}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)

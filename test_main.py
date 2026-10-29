@@ -94,3 +94,8 @@ def test_expired_token_is_rejected(client):
     expired = create_access_token("ali", expires_delta=timedelta(minutes=-5))
     r = client.get("/me", headers={"Authorization": f"Bearer {expired}"})
     assert r.status_code == 401
+
+def test_health_endpoint(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}

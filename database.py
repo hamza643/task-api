@@ -1,11 +1,9 @@
-import os
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session
 
-# Postgres in Docker sets DATABASE_URL; without it we keep using SQLite.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///tasks.db")
+from settings import DATABASE_URL
 
+# check_same_thread is a SQLite-only option, Postgres would reject it.
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)

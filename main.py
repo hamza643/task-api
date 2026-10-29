@@ -23,6 +23,9 @@ app = FastAPI()
 def root():
     return {"message": "Welcome to the Task API"}
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.post("/signup", response_model=UserOut, status_code=201)
 def signup(user_in: UserCreate, db: Session = Depends(get_db)):

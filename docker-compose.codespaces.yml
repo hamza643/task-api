@@ -1,17 +1,15 @@
 # Codespaces-only version: both containers share the host network,
 # because container-to-container bridge traffic is blocked there.
+# Use it with:  docker compose -f docker-compose.codespaces.yml up --build
 services:
   db:
     image: postgres:16
     network_mode: host
-    environment:
-      POSTGRES_USER: taskuser
-      POSTGRES_PASSWORD: taskpass
-      POSTGRES_DB: tasks
+    env_file: .env
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U taskuser -d tasks"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 3s
       timeout: 3s
       retries: 10
@@ -19,11 +17,18 @@ services:
   api:
     build: .
     network_mode: host
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg2://taskuser:taskpass@127.0.0.1:5432/tasks
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
 volumes:
   pgdata:
