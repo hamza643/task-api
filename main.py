@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -30,6 +31,9 @@ from security import (
 Base.metadata.create_all(engine)
 
 app = FastAPI()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("task-api")
 
 
 def get_owned_task(db: Session, task_id: int, user: User) -> Task:
@@ -72,6 +76,7 @@ def health():
 def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     existing = db.scalars(select(User).where(User.username == user_in.username)).first()
     if existing:
+        logger.warning("Signup failed, username already taken: %s", user_in.username)
         raise HTTPException(status_code=400, detail="Username already taken")
 
     user = User(
@@ -81,6 +86,7 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    logger.info("User %s signed up", user.username)
     return user
 
 
@@ -88,7 +94,9 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.scalars(select(User).where(User.username == form.username)).first()
     if user is None or not verify_password(form.password, user.password_hash):
+        logger.warning("Login failed for %s", form.username)
         raise HTTPException(status_code=401, detail="Incorrect username or password")
+    logger.info("User %s logged in", user.username)
     return {"access_token": create_access_token(user.username), "token_type": "bearer"}
 
 
@@ -129,6 +137,7 @@ def create_task(
     db.add(task)
     db.commit()
     db.refresh(task)
+    logger.info("Task %s created by user %s", task.id, current_user.username)
     return task
 
 
@@ -143,9 +152,11 @@ def delete_task(
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     if task.owner_id != current_user.id:
+        logger.warning("User %s tried to delete task %s owned by someone else", current_user.username, task_id)
         raise HTTPException(status_code=403, detail="Not your task")
     db.delete(task)
     db.commit()
+    logger.info("Task %s deleted by user %s", task_id, current_user.username)
 
 
 # ---------- projects (one project -> many tasks) ----------
@@ -161,6 +172,7 @@ def create_project(
     db.add(project)
     db.commit()
     db.refresh(project)
+    logger.info("Project %s created by user %s", project.id, current_user.username)
     return project
 
 
@@ -216,6 +228,7 @@ def add_comment(
     db.add(comment)
     db.commit()
     db.refresh(comment)
+    logger.info("Comment %s added to task %s by user %s", comment.id, task.id, current_user.username)
     return comment
 
 
